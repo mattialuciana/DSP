@@ -1,8 +1,7 @@
 import numpy as np
 from graficos import graficar_t, graficar_f, graficar_analisis
 from respuestaf import respuesta_f
-from senales_temporales import generar_tono_puro
-
+from senales_temporales import generar_tono_puro, sumar_senales
 
 def filtros_media_movil(M,N):
     """
@@ -60,7 +59,8 @@ def filtro_peine(b0, b1, b2, N):
 
     return h 
 
-def filtro_fir(N, path="C:\\Users\\Administrator\\Documents\\untref\\DSP\\DSP\\archivos_tp1c2026\\fir_hamming_1000Hz.npy"):  
+
+def filtro_fir(N=3000, path=r"c:\Users\Familia\Documents\DONELLA 2026\DSP\DSP\Datos\archivos_tp1c2026\fir_hamming_1000Hz.npy"):
     #esto funciona solamente para mi compu pero bueno
     delta = np.zeros(N)
     delta[0] = 1
@@ -148,9 +148,24 @@ def filtrar_frecuencial(filtro, señal, fs):
 
 """
 señal_filtrada = filtrar_frecuencial (hp, tono_puro, fs=3000) 
-"""
 
 señal_filtrada_1 = filtrar_temporal(hp, tono_puro)
 
 graficar_f(fs=3000, señales=señal_filtrada_1, titulo="tono puro filtrado")
+"""
+
+señal_fir = filtro_fir(N=3000, path=r"c:\Users\Familia\Documents\DONELLA 2026\DSP\DSP\Datos\archivos_tp1c2026\fir_hamming_1000Hz.npy")
+señal_fir_truncada = señal_fir[:1000]
+
+señal_multitono = sumar_senales(generar_tono_puro(amplitud=1, duracion=5, fs=3000, frecuencia=200), generar_tono_puro(amplitud=1, duracion=5, fs=3000, frecuencia=500))
+
+señal_filtrada_multitono = filtrar_frecuencial(señal_fir, señal_multitono, fs=3000)
+señal_filtrada_trunc_multi = filtrar_frecuencial(señal_fir_truncada, señal_multitono, fs=3000)
+
+graficar_f(fs=3000, señales=señal_filtrada_multitono, titulo="señal multitono fir completo")
+graficar_f(fs=3000, señales=señal_filtrada_trunc_multi, titulo="señal multitono filtrada con fir truncado")
+
+
+
+
 
