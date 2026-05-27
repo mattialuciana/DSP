@@ -52,7 +52,7 @@ def respuesta_f(entrada, salida, fs):
     return freqs, H
 
 
-
+"""
 entrada=[1,4,9,9,2]
 salida=[1,4,9,9,2]
 frecuencias, respuesta =respuesta_f(entrada, salida, 44100)
@@ -67,3 +67,4 @@ plt.ylabel('|H(f)|')
 plt.title('Magnitud de H(f)')
 plt.grid(True)
 plt.show()
+"""

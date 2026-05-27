@@ -5,7 +5,7 @@ import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
 
-def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo'):
+def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', modo='continuo'):
     """
     Grafica una o varias señales en función del tiempo calculando 
     la duración automáticamente.
@@ -20,6 +20,10 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo'):
         Etiquetas para identificar cada señal en la leyenda.
     titulo : str, opcional
         Título del gráfico.
+    modo : {'continuo', 'discreto'}, optional
+        Indica si la señal debe graficarse como una curva continua
+        (`'continuo'`) o como puntos discretos/diagrama de tallo
+        (`'discreto'`). Valor por defecto: `'continuo'`.
     """
     # Si se recibe una única señal, la convertimos en lista
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
@@ -34,17 +38,20 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo'):
     
     # Recorremos cada señal
     for s, etiqueta in zip(señales, etiquetas):
-        # Calculamos la cantidad de muestras de ESTA señal
-        muestras = len(s) 
-        
-        # Calculamos la duración exacta de esta señal
-        duracion = muestras / fs 
-        
-        # Generamos el vector de tiempo correspondiente
-        t = np.arange(0, duracion, 1/fs)
-        
-        # Graficamos asegurando que coincidan las longitudes (por si acaso)
-        ax.plot(t[:muestras], s, label=etiqueta)
+        muestras = len(s)
+
+        # Vector de tiempo exactamente alineado con las muestras
+        t = np.arange(muestras) / fs
+
+        # Graficado según modo solicitado
+        if modo == 'discreto':
+            markerline, stemlines, baseline = ax.stem(t, s)
+            try:
+                markerline.set_label(etiqueta)
+            except Exception:
+                pass
+        else:
+            ax.plot(t, s, label=etiqueta)
     
 
     ax.set_title(titulo)
@@ -125,7 +132,67 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     plt.show()
     return fig
 
+def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
+    
+    """Función para graficar módulo y fase en radianes usando subplots."""
+    if isinstance(modulos, np.ndarray) and modulos.ndim == 1:
+        modulos = [modulos]
+    if isinstance(fases_rad, np.ndarray) and fases_rad.ndim == 1:
+        fases_rad = [fases_rad]
+    if etiquetas is None:
+        if len(modulos) == 1:
+            etiquetas_modulo = ['Módulo']
+            etiquetas_fase = ['Fase']
+        else:
+            etiquetas_modulo = [f'Filtro {i+1}' for i in range(len(modulos))]
+            etiquetas_fase = etiquetas_modulo.copy()
+    elif isinstance(etiquetas, str):
+        etiquetas = [etiquetas]
+        etiquetas_modulo = etiquetas
+        etiquetas_fase = etiquetas
+    else:
+        # Si sólo hay un filtro pero se pasaron dos etiquetas, la primera
+        # se usa para módulo y la segunda para fase.
+        if len(modulos) == 1 and len(etiquetas) == 2:
+            etiquetas_modulo = [etiquetas[0]]
+            etiquetas_fase = [etiquetas[1]]
+        else:
+            etiquetas_modulo = etiquetas
+            etiquetas_fase = etiquetas
+            if len(etiquetas_fase) < len(modulos):
+                etiquetas_fase = etiquetas_modulo
 
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    
+    for mod, f_rad, etiqueta_mod, etiqueta_fase in zip(modulos, fases_rad, etiquetas_modulo, etiquetas_fase):
+        fase_rad_continua = np.unwrap(f_rad)
+        freqs_recortadas = frecuencias[:len(mod)]
+        
+        ax1.plot(freqs_recortadas, mod, label=etiqueta_mod, lw=2)
+        ax2.plot(freqs_recortadas, fase_rad_continua, label=etiqueta_fase, lw=1.5, color='red')
+        
+    # Estética Módulo
+    ax1.spines['left'].set_position('zero')
+    ax1.spines['bottom'].set_position('zero')
+    ax1.spines['right'].set_color('none')
+    ax1.spines['top'].set_color('none')
+    ax1.set_title(titulo, fontsize=14)
+    ax1.set_ylabel("|H(w)|")
+    ax1.legend(loc='upper right')
+    ax1.grid(True)
+    
+    # Estética Fase
+    ax2.spines['left'].set_position('zero')
+    ax2.spines['bottom'].set_position('zero')
+    ax2.spines['right'].set_color('none')
+    ax2.spines['top'].set_color('none')
+    ax2.set_xlabel("Frecuencia (Hz)")
+    ax2.set_ylabel("Fase (rad)")
+    ax2.legend(loc='upper right')
+    ax2.grid(True)
+    
+    plt.tight_layout()
+    plt.show()
 
 
 
