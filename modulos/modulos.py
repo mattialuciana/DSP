@@ -5,6 +5,78 @@ import soundfile as sf
 import matplotlib.pyplot as plt
 import os
 
+# --- FUNCIONES DE GENERACION DE SENALES ---
+def generar_tono_puro(amplitud, duracion, fs, frecuencia):
+    """
+    Genera un tono sinusoidal puro.
+    Parámetros
+    ----------
+    frecuencia : int
+        Frecuencia de oscilación de la señal.
+    duracion: float
+        Duración en segundos de la señal.
+    fs : int
+        Frecuencia de muestreo en Hz.
+    amplitud:
+        Valor del pico de la señal sinusoidal.
+    """
+    t = np.linspace(0, duracion, int(fs * duracion), endpoint=False)
+    tono_puro = amplitud * np.sin(2 * np.pi * frecuencia * t)
+    return tono_puro
+
+def generar_ruido_blanco(amplitud, duracion, fs):
+    """
+    Genera ruido blanco, bajo el metodo de dispersion normal.
+    Parámetros
+    ----------
+    amplitud: float
+        Valor medio de dispersión del ruido blanco.
+    duracion: float
+        Duración en segundos de la señal.
+    fs : int
+        Frecuencia de muestreo en Hz.
+    """
+    longitud = int(fs * duracion)
+    ruido_blanco_random = np.random.normal(loc=0, scale=1.0, size=longitud)     # Genera un ruido con media 0, desviación estandar 1.
+    
+    valor_pico = np.max(np.abs(ruido_blanco_random))                            # Calcula el pico de la señal de ruido
+    ruido_blanco_normalizado = (ruido_blanco_random / valor_pico)               # Normaliza el ruido con el valor absoluto del pico     
+    ruido_blanco_final = ruido_blanco_normalizado * amplitud                    # Multiplica el ruido por el valor de amplitud buscado
+    return ruido_blanco_final
+
+def sumar_senales(*senales):
+    """
+    Suma n cantidad de señales, rellenando las más cortas con ceros para obtener un largo total de la señal mas larga.
+    Parámetros
+    ----------
+    senales: array
+    """
+    if not senales:
+        return np.array([])
+  
+    largo_max = max(len(s) for s in senales)                                    # Encuentra el largo de la señal más larga
+  
+    resultado = np.zeros(largo_max)                                             # Crea un array de resultados con ceros
+  
+    for s in senales:                                                           # Rellena cada señal con ceros hasta el maximo y la suma al resultado
+        s_pad = np.pad(s, (0, largo_max - len(s)), mode='constant')             # np.pad agrega ceros al final hasta llegar a 'largo_max'
+        resultado += s_pad
+        
+    return resultado
+
+def generar_arpegio(duracion_arpegio, fs, *frecuencias):
+    duracion_nota = duracion_arpegio / len(frecuencias)                         # Calcula la duración de cada nota para que el total sume los segundos esperados
+    notas_audio = []
+    
+    for f in frecuencias:                                                       # Genera cada tono y lo guarda en la lista
+        tono = generar_tono_puro(1, duracion_nota, fs, f)
+        notas_audio.append(tono)
+
+    audio_final = np.concatenate(notas_audio)                                   # Concatena todas las notas en una sola señal larga
+    
+    return audio_final, fs
+
+# --- FUNCIONES DE GRAFICACION ---
 def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xlim=None):
     """
     Grafica una o varias señales en función del tiempo calculando 
@@ -51,6 +123,8 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
     ax.set_ylabel("Amplitud")
     ax.legend(loc='upper right') 
     ax.grid(True)
+    
+    plt.subplots_adjust()
     plt.show()
     
 
@@ -133,6 +207,7 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     ax.set_ylabel("Magnitud")
     ax.legend(loc='upper right')
     
+    plt.subplots_adjust()
     plt.show()
 
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
@@ -194,8 +269,8 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     ax2.set_ylim(-np.pi, np.pi)
     ax2.legend(loc='upper right')
     ax2.grid(True)
-    
-    plt.tight_layout()
+
+    plt.subplots_adjust()
     plt.show()
 
 
@@ -248,6 +323,8 @@ def respuesta_f(entrada, salida, fs):
     
     return freqs, magnitud_H, fase_H
 
+
+# FUNCIONES DE FILTROS
 def filtros_media_movil(M,N):
     """
     Genera las respuestas al impulso para un filtro de media móvil
@@ -305,7 +382,7 @@ def filtro_peine(b0, b1, b2, N):
     return h 
 
 
-def filtro_fir(N=3000, path=r"c:\Users\Familia\Documents\DONELLA 2026\DSP\DSP\Datos\archivos_tp1c2026\fir_hamming_1000Hz.npy"):
+def filtro_fir(N, path):
     #esto funciona solamente para mi compu pero bueno
     delta = np.zeros(N)
     delta[0] = 1
@@ -342,19 +419,19 @@ def analisis_filtros(filtro, fs):
     return freqs, modulo, fase_rad
 
 
-def filtrar_temporal(filtro, señal):
+def filtrar_temporal(h_filtro, señal):
     """
     agregar docstring
     """
-    señal_filtrada = np.convolve(señal, filtro, mode='same')
+    señal_filtrada = np.convolve(señal, h_filtro, mode='same')
 
     return señal_filtrada
 
-def filtrar_frecuencial(filtro, señal, fs):
+def filtrar_frecuencial(h_filtro, señal, fs):
     """
     agregar docstring
     """
-    H_w = np.fft.rfft(filtro, n=len(señal))
+    H_w = np.fft.rfft(h_filtro, n=len(señal))
     X_w = np.fft.rfft(señal)
     Y_w = H_w * X_w
 
@@ -362,76 +439,7 @@ def filtrar_frecuencial(filtro, señal, fs):
 
     return señal_filtrada
 
-def generar_tono_puro(amplitud, duracion, fs, frecuencia):
-    """
-    Genera un tono sinusoidal puro.
-    Parámetros
-    ----------
-    frecuencia : int
-        Frecuencia de oscilación de la señal.
-    duracion: float
-        Duración en segundos de la señal.
-    fs : int
-        Frecuencia de muestreo en Hz.
-    amplitud:
-        Valor del pico de la señal sinusoidal.
-    """
-    t = np.linspace(0, duracion, int(fs * duracion), endpoint=False)
-    tono_puro = amplitud * np.sin(2 * np.pi * frecuencia * t)
-    return tono_puro
-
-def generar_ruido_blanco(amplitud, duracion, fs):
-    """
-    Genera ruido blanco, bajo el metodo de dispersion normal.
-    Parámetros
-    ----------
-    amplitud: float
-        Valor medio de dispersión del ruido blanco.
-    duracion: float
-        Duración en segundos de la señal.
-    fs : int
-        Frecuencia de muestreo en Hz.
-    """
-    longitud = int(fs * duracion)
-    ruido_blanco_random = np.random.normal(loc=0, scale=1.0, size=longitud)     # Genera un ruido con media 0, desviación estandar 1.
-    
-    valor_pico = np.max(np.abs(ruido_blanco_random))                            # Calcula el pico de la señal de ruido
-    ruido_blanco_normalizado = (ruido_blanco_random / valor_pico)               # Normaliza el ruido con el valor absoluto del pico     
-    ruido_blanco_final = ruido_blanco_normalizado * amplitud                    # Multiplica el ruido por el valor de amplitud buscado
-    return ruido_blanco_final
-
-def sumar_senales(*senales):
-    """
-    Suma n cantidad de señales, rellenando las más cortas con ceros para obtener un largo total de la señal mas larga.
-    Parámetros
-    ----------
-    senales: array
-    """
-    if not senales:
-        return np.array([])
-  
-    largo_max = max(len(s) for s in senales)                                    # Encuentra el largo de la señal más larga
-  
-    resultado = np.zeros(largo_max)                                             # Crea un array de resultados con ceros
-  
-    for s in senales:                                                           # Rellena cada señal con ceros hasta el maximo y la suma al resultado
-        s_pad = np.pad(s, (0, largo_max - len(s)), mode='constant')             # np.pad agrega ceros al final hasta llegar a 'largo_max'
-        resultado += s_pad
-        
-    return resultado
-
-def generar_arpegio(duracion_arpegio, fs, *frecuencias):
-    duracion_nota = duracion_arpegio / len(frecuencias)                         # Calcula la duración de cada nota para que el total sume los segundos esperados
-    notas_audio = []
-    
-    for f in frecuencias:                                                       # Genera cada tono y lo guarda en la lista
-        tono = generar_tono_puro(1, duracion_nota, fs, f)
-        notas_audio.append(tono)
-
-    audio_final = np.concatenate(notas_audio)                                   # Concatena todas las notas en una sola señal larga
-    
-    return audio_final, fs
-
+# EXTRA
 def descargar_wav_normalizado(audio, fs, nombre_archivo):
     valor_pico = np.max(np.abs(audio))
     audio_normalizado = audio / valor_pico
