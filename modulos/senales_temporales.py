@@ -72,7 +72,7 @@ def generar_arpegio(duracion_arpegio, fs, *frecuencias):
     notas_audio = []
     
     for f in frecuencias:                                                       # Genera cada tono y lo guarda en la lista
-        tono = generar_tono_puro(f, duracion_nota, fs, amplitud=0.5)
+        tono = generar_tono_puro(1, duracion_nota, fs, f)
         notas_audio.append(tono)
 
     audio_final = np.concatenate(notas_audio)                                   # Concatena todas las notas en una sola señal larga
