@@ -1,6 +1,6 @@
 import numpy as np
 import soundfile as sf
-from graficos import graficar_f
+from modulos.graficos import graficar_f
 
 
 
