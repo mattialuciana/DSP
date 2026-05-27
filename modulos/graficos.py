@@ -56,7 +56,7 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
 
 
 # GRAFICAR FUNCIONES EN FRECUENCIA. revisar los rastros de copilot. cuidado con la escala logarítmica  (límites?)
-def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fourier)', xlim=(20, 20000)):
+def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fourier)', xlim=None):
     """
     Calcula y grafica el espectro de magnitud de Fourier en escala logarítmica.
     
@@ -71,11 +71,14 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     titulo : str, opcional
         Título del gráfico.
     xlim : tuple, opcional
-        Límites del eje X. Por defecto (20, 20000) Hz.
+        Límites del eje X (fmin, fmax). Si es None o no se especifica, 
+        se usa por defecto (20, 20000) Hz.
     """
+    # 1. Normalización de las señales de entrada
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
         señales = [señales]
         
+    # 2. Normalización de las etiquetas
     if etiquetas is None:
         etiquetas = [f'Espectro {i+1}' for i in range(len(señales))]
     elif isinstance(etiquetas, str):
@@ -83,40 +86,48 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
         
     fig, ax = plt.subplots(figsize=(10, 6))
 
+    # 3. Procesamiento y cálculo de FFT
     for s, etiqueta in zip(señales, etiquetas):
         N = len(s)
         
-        # Cálculo de la FFT para señales reales y sus frecuencias correspondientes
+        # FFT para señales reales y sus frecuencias correspondientes
         fft_vals = np.fft.rfft(s)
         frecuencias = np.fft.rfftfreq(N, 1/fs)
         
-        # Magnitud normalizada para recuperar la amplitud real de los componentes sinusoides
+        # Magnitud normalizada para recuperar la amplitud real
         magnitud = np.abs(fft_vals) * (2.0 / N)
         
-        # Corrección estricta para las componentes límites (Continua y Nyquist)
+        # Corrección para componentes límites (Continua y Nyquist)
         magnitud[0] = magnitud[0] / 2.0
         if N % 2 == 0:
             magnitud[-1] = magnitud[-1] / 2.0
 
         ax.plot(frecuencias, magnitud, label=etiqueta)
         
-    # Cambiamos a escala logarítmica pura
+    # 4. Configuración del eje X y escala logarítmica
     ax.set_xscale('log')
     
-    # Aplicamos límites (por defecto de 20 a 20kHz)
-    if xlim is not None:
-        ax.set_xlim(xlim)
-        
-    # Ticks clásicos de ecualizadores / analizadores
+    # CONTROL DE LÍMITES: Si es None, asigna el rango clásico de audio (20 - 20kHz)
+    if xlim is None:
+        xlim = (20, 20000)
+    ax.set_xlim(xlim)
+    
+    # 5. Configuración dinámica de Ticks según los límites elegidos
     ticks_audio = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
     labels_audio = ['20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k']
     
-    ax.set_xticks(ticks_audio)
-    ax.set_xticklabels(labels_audio)
+    # Filtrar ticks para que solo se muestren los que entran en el rango elegido por el usuario
+    ticks_filtrados = [t for t in ticks_audio if xlim[0] <= t <= xlim[1]]
+    labels_filtrados = [l for t, l in zip(ticks_audio, labels_audio) if xlim[0] <= t <= xlim[1]]
     
-    # Grilla doble (principal y secundaria) con líneas punteadas
+    # Si el usuario eligió un rango muy específico donde no caen ticks estándar, 
+    # dejamos que matplotlib los ponga automáticamente para no dejar el eje vacío.
+    if len(ticks_filtrados) > 0:
+        ax.set_xticks(ticks_filtrados)
+        ax.set_xticklabels(labels_filtrados)
+    
+    # 6. Estética final del gráfico
     ax.grid(True, which="both", ls="--", color='gray', alpha=0.5)
-    
     ax.set_title(titulo)
     ax.set_xlabel("Frecuencia (Hz)")
     ax.set_ylabel("Magnitud")
@@ -180,6 +191,7 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     ax2.spines['top'].set_color('none')
     ax2.set_xlabel("Frecuencia (Hz)")
     ax2.set_ylabel("Fase (rad)")
+    ax2.set_ylim(-np.pi, np.pi)
     ax2.legend(loc='upper right')
     ax2.grid(True)
     

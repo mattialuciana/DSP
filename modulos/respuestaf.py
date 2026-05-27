@@ -1,9 +1,7 @@
 import numpy as np
 import soundfile as sf
-from modulos.graficos import graficar_f
-
-
-
+from modulos.senales_temporales import *
+from modulos.graficos import *
 
 def respuesta_f(entrada, salida, fs):
     """
@@ -46,25 +44,18 @@ def respuesta_f(entrada, salida, fs):
     # Calculamos la respuesta en frecuencia H(f) = S(f) / E(f)
     H = S / E
     
+    magnitud_H = np.abs(H)
+    fase_H = np.angle(H)
+    
     # Calculamos las frecuencias correspondientes a cada bin de la FFT
     freqs = np.fft.fftfreq(N, d=1/fs)
     
-    return freqs, H
-
+    return freqs, magnitud_H, fase_H
 
 """
-entrada=[1,4,9,9,2]
-salida=[1,4,9,9,2]
-frecuencias, respuesta =respuesta_f(entrada, salida, 44100)
-# Extraer magnitud de la respuesta compleja
-magnitud_respuesta = np.abs(respuesta)
+tono_1 = generar_tono_puro(1, 1, 1000, 50)
+tono_2 = generar_tono_puro(2, 1, 1000, 50)
 
-import matplotlib.pyplot as plt
-
-plt.plot(frecuencias, magnitud_respuesta, marker='o')
-plt.xlabel('Frecuencia (Hz)')
-plt.ylabel('|H(f)|')
-plt.title('Magnitud de H(f)')
-plt.grid(True)
-plt.show()
+freq, H, faseH = respuesta_f(tono_1, tono_2, 1000)
+graficar_analisis(freq, H, faseH)
 """
