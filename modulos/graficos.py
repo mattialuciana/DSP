@@ -5,10 +5,10 @@ import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
 
-def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', modo='continuo'):
+def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xlim=None):
     """
     Grafica una o varias señales en función del tiempo calculando 
-    la duración automáticamente.
+    la duración automáticamente y permitiendo ajustar los límites del eje X.
     
     Parámetros
     ----------
@@ -20,10 +20,8 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', mod
         Etiquetas para identificar cada señal en la leyenda.
     titulo : str, opcional
         Título del gráfico.
-    modo : {'continuo', 'discreto'}, optional
-        Indica si la señal debe graficarse como una curva continua
-        (`'continuo'`) o como puntos discretos/diagrama de tallo
-        (`'discreto'`). Valor por defecto: `'continuo'`.
+    xlim : tuple o list, opcional
+        Límites para el eje X, ej: (0, 0.01). Si es None, muestra el tiempo completo.
     """
     # Si se recibe una única señal, la convertimos en lista
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
@@ -38,37 +36,29 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', mod
     
     # Recorremos cada señal
     for s, etiqueta in zip(señales, etiquetas):
-        muestras = len(s)
-
-        # Vector de tiempo exactamente alineado con las muestras
-        t = np.arange(muestras) / fs
-
-        # Graficado según modo solicitado
-        if modo == 'discreto':
-            markerline, stemlines, baseline = ax.stem(t, s)
-            try:
-                markerline.set_label(etiqueta)
-            except Exception:
-                pass
-        else:
-            ax.plot(t, s, label=etiqueta)
+        muestras = len(s) 
+        duracion = muestras / fs 
+        t = np.arange(0, duracion, 1/fs)
+        
+        ax.plot(t[:muestras], s, label=etiqueta)
     
-
+    # Si el usuario definió xlim, lo aplicamos al eje X
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    
     ax.set_title(titulo)
     ax.set_xlabel("Tiempo (s)")
     ax.set_ylabel("Amplitud")
     ax.legend(loc='upper right') 
     ax.grid(True)
-    
     plt.show()
-    return fig
     
 
 
 # GRAFICAR FUNCIONES EN FRECUENCIA. revisar los rastros de copilot. cuidado con la escala logarítmica  (límites?)
-def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fourier)'):
+def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fourier)', xlim=(20, 20000)):
     """
-    Calcula y grafica el espectro de magnitud de Fourier de una o varias señales.
+    Calcula y grafica el espectro de magnitud de Fourier en escala logarítmica.
     
     Parámetros
     ----------
@@ -80,6 +70,8 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
         Etiquetas para identificar cada espectro en la leyenda.
     titulo : str, opcional
         Título del gráfico.
+    xlim : tuple, opcional
+        Límites del eje X. Por defecto (20, 20000) Hz.
     """
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
         señales = [señales]
@@ -90,9 +82,6 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
         etiquetas = [etiquetas]
         
     fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Determinar el menor valor de frecuencia > 0 para linthresh de symlog
-    min_nonzero_freq = np.inf
 
     for s, etiqueta in zip(señales, etiquetas):
         N = len(s)
@@ -104,33 +93,36 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
         # Magnitud normalizada para recuperar la amplitud real de los componentes sinusoides
         magnitud = np.abs(fft_vals) * (2.0 / N)
         
-        # Corrección estricta para las componentes límites (Continua y Nyquist) que no se duplican
+        # Corrección estricta para las componentes límites (Continua y Nyquist)
         magnitud[0] = magnitud[0] / 2.0
         if N % 2 == 0:
             magnitud[-1] = magnitud[-1] / 2.0
-            
-        # Registrar la menor frecuencia positiva encontrada
-        mask = frecuencias > 0
-        if np.any(mask):
-            min_nonzero_freq = min(min_nonzero_freq, frecuencias[mask].min())
 
-        # Trazar todo (incluye f=0). Usaremos una escala symlog más abajo.
         ax.plot(frecuencias, magnitud, label=etiqueta)
         
+    # Cambiamos a escala logarítmica pura
+    ax.set_xscale('log')
+    
+    # Aplicamos límites (por defecto de 20 a 20kHz)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+        
+    # Ticks clásicos de ecualizadores / analizadores
+    ticks_audio = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
+    labels_audio = ['20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k']
+    
+    ax.set_xticks(ticks_audio)
+    ax.set_xticklabels(labels_audio)
+    
+    # Grilla doble (principal y secundaria) con líneas punteadas
+    ax.grid(True, which="both", ls="--", color='gray', alpha=0.5)
+    
     ax.set_title(titulo)
-    # Usar escala symlog para mantener f=0 y comportamiento log fuera de linthresh
-    if np.isfinite(min_nonzero_freq) and min_nonzero_freq > 0:
-        ax.set_xscale('symlog', linthresh=min_nonzero_freq)
-        ax.set_xlabel(f"Frecuencia (Hz)")
-    else:
-        ax.set_xscale('linear')
-        ax.set_xlabel("Frecuencia (Hz)")
+    ax.set_xlabel("Frecuencia (Hz)")
     ax.set_ylabel("Magnitud")
     ax.legend(loc='upper right')
-    ax.grid(True)
     
     plt.show()
-    return fig
 
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
     
