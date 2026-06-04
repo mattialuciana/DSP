@@ -211,12 +211,16 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     plt.show()
 
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
-    
-    """Función para graficar módulo y fase en radianes usando subplots."""
+    """
+    Función para graficar módulo y fase en radianes usando subplots.
+    Mantiene la fase acotada estrictamente entre -pi y pi sin desenvolver (unwrap).
+    """
+    # Validaciones para asegurar que modulos y fases sean listas/iterables
     if isinstance(modulos, np.ndarray) and modulos.ndim == 1:
         modulos = [modulos]
     if isinstance(fases_rad, np.ndarray) and fases_rad.ndim == 1:
         fases_rad = [fases_rad]
+        
     if etiquetas is None:
         if len(modulos) == 1:
             etiquetas_modulo = ['Módulo']
@@ -229,8 +233,6 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
         etiquetas_modulo = etiquetas
         etiquetas_fase = etiquetas
     else:
-        # Si sólo hay un filtro pero se pasaron dos etiquetas, la primera
-        # se usa para módulo y la segunda para fase.
         if len(modulos) == 1 and len(etiquetas) == 2:
             etiquetas_modulo = [etiquetas[0]]
             etiquetas_fase = [etiquetas[1]]
@@ -240,39 +242,49 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
             if len(etiquetas_fase) < len(modulos):
                 etiquetas_fase = etiquetas_modulo
 
+    # Creación de los subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
     
+    # Bucle de graficación
     for mod, f_rad, etiqueta_mod, etiqueta_fase in zip(modulos, fases_rad, etiquetas_modulo, etiquetas_fase):
-        fase_rad_continua = np.unwrap(f_rad)
         freqs_recortadas = frecuencias[:len(mod)]
         
+        # Gráfico de Módulo
         ax1.plot(freqs_recortadas, mod, label=etiqueta_mod, lw=2)
-        ax2.plot(freqs_recortadas, fase_rad_continua, label=etiqueta_fase, lw=1.5, color='red')
         
-    # Estética Módulo
+        # Gráfico de Fase (usamos f_rad directo, SIN np.unwrap)
+        ax2.plot(freqs_recortadas, f_rad, label=etiqueta_fase, lw=1.5, color='red')
+        
+    # --- Estética del Módulo ---
     ax1.spines['left'].set_position('zero')
     ax1.spines['bottom'].set_position('zero')
     ax1.spines['right'].set_color('none')
     ax1.spines['top'].set_color('none')
     ax1.set_title(titulo, fontsize=14)
-    ax1.set_ylabel("|H(w)|")
+    ax1.set_ylabel(r"$|H(\omega)|$", fontsize=12)
     ax1.legend(loc='upper right')
-    ax1.grid(True)
+    ax1.grid(True, linestyle='--', alpha=0.7)
     
-    # Estética Fase
+    # --- Estética de la Fase ---
     ax2.spines['left'].set_position('zero')
     ax2.spines['bottom'].set_position('zero')
     ax2.spines['right'].set_color('none')
     ax2.spines['top'].set_color('none')
-    ax2.set_xlabel("Frecuencia (Hz)")
-    ax2.set_ylabel("Fase (rad)")
-    ax2.set_ylim(-np.pi, np.pi)
+    ax2.set_xlabel("Frecuencia (Hz)", fontsize=12)
+    ax2.set_ylabel("Fase (rad)", fontsize=12)
+    
+    # Acotamos el eje Y sumando un pequeño margen (0.5) para que las líneas no se corten en los bordes
+    ax2.set_ylim(-np.pi - 0.5, np.pi + 0.5)
+    
+    # Configuramos los ticks del eje Y para mostrar múltiplos de Pi limpios
+    ax2.set_yticks([-np.pi, 0, np.pi])
+    ax2.set_yticklabels([r'$-\pi$', '0', r'$\pi$'], fontsize=11)
+    
     ax2.legend(loc='upper right')
-    ax2.grid(True)
+    ax2.grid(True, linestyle='--', alpha=0.7)
 
-    plt.subplots_adjust()
+    plt.tight_layout() # Reemplaza a subplots_adjust para auto-acomodar los márgenes
     plt.show()
-
 
 def respuesta_f(entrada, salida, fs):
     """
@@ -395,26 +407,18 @@ def filtro_fir(N, path):
 def analisis_filtros(filtro, fs):
     """
     Toma la respuesta al impulso de un filtro, calcula su FFT real 
-    y devuelve el vector de frecuencias, el módulo y la fase en radianes.
-    
-    Parámetros
-    ----------
-    filtro : NumPy array
-        Respuesta al impulso del filtro (coeficientes).
-    fs : int
-        Frecuencia de muestreo en Hz.
-        
-    Retorna
-    -------
-    freqs : NumPy array (Vector de frecuencias en Hz)
-    modulo : NumPy array (Magnitud o ganancia del filtro)
-    fase_rad : NumPy array (Fase del filtro en radianes)
+    y devuelve el vector de frecuencias, el módulo y la fase acotada entre -pi y pi.
     """
     N = len(filtro)
     H_w = np.fft.rfft(filtro)
     freqs = np.fft.rfftfreq(N, d=1/fs)
     modulo = np.abs(H_w)
-    fase_rad = np.angle(H_w)
+    
+    # 1. Obtenemos la fase base
+    fase_raw = np.angle(H_w)
+    
+    # 2. Forzamos matemáticamente a que esté en el rango [-pi, pi]
+    fase_rad = (fase_raw + np.pi) % (2 * np.pi) - np.pi
 
     return freqs, modulo, fase_rad
 
