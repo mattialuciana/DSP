@@ -74,10 +74,10 @@ def generar_arpegio(duracion_arpegio, fs, *frecuencias):
 
     audio_final = np.concatenate(notas_audio)                                   # Concatena todas las notas en una sola señal larga
     
-    return audio_final, fs
+    return audio_final
 
 # --- FUNCIONES DE GRAFICACION ---
-def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xlim=None):
+def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xlim=None, modo=None):
     """
     Grafica una o varias señales en función del tiempo calculando 
     la duración automáticamente y permitiendo ajustar los límites del eje X.
@@ -94,6 +94,10 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
         Título del gráfico.
     xlim : tuple o list, opcional
         Límites para el eje X, ej: (0, 0.01). Si es None, muestra el tiempo completo.
+    modo : str, opcional
+        Si se establece a 'discreto', grafica la señal discretamente usando
+        marcadores y líneas tipo "stem". Por defecto (None) grafica en
+        forma continua con plot().
     """
     # Si se recibe una única señal, la convertimos en lista
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
@@ -105,14 +109,24 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
         etiquetas = [etiquetas]
         
     fig, ax = plt.subplots(figsize=(10, 6))
+    colores = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
     # Recorremos cada señal
-    for s, etiqueta in zip(señales, etiquetas):
+    for i, (s, etiqueta) in enumerate(zip(señales, etiquetas)):
         muestras = len(s) 
         duracion = muestras / fs 
         t = np.arange(0, duracion, 1/fs)
+        color = colores[i % len(colores)]
         
-        ax.plot(t[:muestras], s, label=etiqueta)
+        if modo == 'discreto':
+            markerline, stemlines, baseline = ax.stem(
+                t[:muestras], s, label=etiqueta, linefmt=color, markerfmt='o', basefmt=" "
+            )
+            markerline.set_color(color)
+            stemlines.set_color(color)
+            baseline.set_color(color)
+        else:
+            ax.plot(t[:muestras], s, label=etiqueta, color=color)
     
     # Si el usuario definió xlim, lo aplicamos al eje X
     if xlim is not None:
@@ -123,8 +137,6 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
     ax.set_ylabel("Amplitud")
     ax.legend(loc='upper right') 
     ax.grid(True)
-    
-    plt.subplots_adjust()
     plt.show()
     
 
@@ -183,7 +195,7 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     
     # CONTROL DE LÍMITES: Si es None, asigna el rango clásico de audio (20 - 20kHz)
     if xlim is None:
-        xlim = (20, 20000)
+        xlim = (20, fs/2)
     ax.set_xlim(xlim)
     
     # 5. Configuración dinámica de Ticks según los límites elegidos
@@ -212,8 +224,9 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
 
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
     """
-    Función para graficar módulo y fase en radianes usando subplots.
-    Mantiene la fase acotada estrictamente entre -pi y pi sin desenvolver (unwrap).
+    Función para graficar módulo (azul) y fase (rojo) en radianes.
+    Mantiene la fase acotada entre -pi y pi.
+    Corrige los problemas de superposición de etiquetas y el warning de tight_layout.
     """
     # Validaciones para asegurar que modulos y fases sean listas/iterables
     if isinstance(modulos, np.ndarray) and modulos.ndim == 1:
@@ -246,34 +259,43 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
     
     # Bucle de graficación
-    for mod, f_rad, etiqueta_mod, etiqueta_fase in zip(modulos, fases_rad, etiquetas_modulo, etiquetas_fase):
+    for i, (mod, f_rad, etiqueta_mod, etiqueta_fase) in enumerate(zip(modulos, fases_rad, etiquetas_modulo, etiquetas_fase)):
         freqs_recortadas = frecuencias[:len(mod)]
         
-        # Gráfico de Módulo
-        ax1.plot(freqs_recortadas, mod, label=etiqueta_mod, lw=2)
+        # Variamos la transparencia (alpha) si hay múltiples curvas para poder distinguirlas
+        alpha_val = 1.0 - (i * 0.2) if len(modulos) > 1 else 1.0
         
-        # Gráfico de Fase (usamos f_rad directo, SIN np.unwrap)
-        ax2.plot(freqs_recortadas, f_rad, label=etiqueta_fase, lw=1.5, color='red')
+        # Gráfico de Módulo en AZUL
+        ax1.plot(freqs_recortadas, mod, label=etiqueta_mod, lw=2, color='blue', alpha=max(alpha_val, 0.4))
+        
+        # Gráfico de Fase en ROJO (directo, SIN np.unwrap)
+        ax2.plot(freqs_recortadas, f_rad, label=etiqueta_fase, lw=1.5, color='red', alpha=max(alpha_val, 0.4))
         
     # --- Estética del Módulo ---
-    ax1.spines['left'].set_position('zero')
-    ax1.spines['bottom'].set_position('zero')
-    ax1.spines['right'].set_color('none')
-    ax1.spines['top'].set_color('none')
+    # Dibujamos ejes cruzados visuales en cero sin mover los contenedores de texto
+    ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
+    ax1.axvline(0, color='black', linewidth=0.8, zorder=1)
+    
+    # Ocultamos solo los bordes superior y derecho para dar un aspecto de plano cartesiano limpio
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    
     ax1.set_title(titulo, fontsize=14)
     ax1.set_ylabel(r"$|H(\omega)|$", fontsize=12)
     ax1.legend(loc='upper right')
     ax1.grid(True, linestyle='--', alpha=0.7)
     
     # --- Estética de la Fase ---
-    ax2.spines['left'].set_position('zero')
-    ax2.spines['bottom'].set_position('zero')
-    ax2.spines['right'].set_color('none')
-    ax2.spines['top'].set_color('none')
+    ax2.axhline(0, color='black', linewidth=0.8, zorder=1)
+    ax2.axvline(0, color='black', linewidth=0.8, zorder=1)
+    
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    
     ax2.set_xlabel("Frecuencia (Hz)", fontsize=12)
     ax2.set_ylabel("Fase (rad)", fontsize=12)
     
-    # Acotamos el eje Y sumando un pequeño margen (0.5) para que las líneas no se corten en los bordes
+    # Acotamos el eje Y sumando un pequeño margen
     ax2.set_ylim(-np.pi - 0.5, np.pi + 0.5)
     
     # Configuramos los ticks del eje Y para mostrar múltiplos de Pi limpios
@@ -283,7 +305,8 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     ax2.legend(loc='upper right')
     ax2.grid(True, linestyle='--', alpha=0.7)
 
-    plt.tight_layout() # Reemplaza a subplots_adjust para auto-acomodar los márgenes
+    # Ahora tight_layout funcionará perfectamente y sin warnings
+    plt.tight_layout() 
     plt.show()
 
 def respuesta_f(entrada, salida, fs):
