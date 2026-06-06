@@ -256,7 +256,7 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
                 etiquetas_fase = etiquetas_modulo
 
     # Creación de los subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
     
     # Bucle de graficación
     for i, (mod, f_rad, etiqueta_mod, etiqueta_fase) in enumerate(zip(modulos, fases_rad, etiquetas_modulo, etiquetas_fase)):
