@@ -1,5 +1,3 @@
-# GRAFICAR FUNCIONES EN EL TIEMPO. revisar los rastros de copilot
-
 import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
@@ -9,6 +7,7 @@ import os
 def generar_tono_puro(amplitud, duracion, fs, frecuencia):
     """
     Genera un tono sinusoidal puro.
+    
     Parámetros
     ----------
     frecuencia : int
@@ -19,14 +18,22 @@ def generar_tono_puro(amplitud, duracion, fs, frecuencia):
         Frecuencia de muestreo en Hz.
     amplitud:
         Valor del pico de la señal sinusoidal.
+        
+    Retorna
+    ----------
+    tono_puro : NumPy array
+        Valores en tiempo correspondientes a la señal sinusoidal.
     """
+    
     t = np.linspace(0, duracion, int(fs * duracion), endpoint=False)
     tono_puro = amplitud * np.sin(2 * np.pi * frecuencia * t)
     return tono_puro
 
+
 def generar_ruido_blanco(amplitud, duracion, fs):
     """
     Genera ruido blanco, bajo el metodo de dispersion normal.
+    
     Parámetros
     ----------
     amplitud: float
@@ -35,52 +42,102 @@ def generar_ruido_blanco(amplitud, duracion, fs):
         Duración en segundos de la señal.
     fs : int
         Frecuencia de muestreo en Hz.
+        
+    Retorna
+    ----------
+    ruido_blanco_final: NumPy array
+        Valores en tiempo correspondientes al ruido blanco.
     """
-    longitud = int(fs * duracion)
-    ruido_blanco_random = np.random.normal(loc=0, scale=1.0, size=longitud)     # Genera un ruido con media 0, desviación estandar 1.
     
-    valor_pico = np.max(np.abs(ruido_blanco_random))                            # Calcula el pico de la señal de ruido
-    ruido_blanco_normalizado = (ruido_blanco_random / valor_pico)               # Normaliza el ruido con el valor absoluto del pico     
-    ruido_blanco_final = ruido_blanco_normalizado * amplitud                    # Multiplica el ruido por el valor de amplitud buscado
+    longitud = int(fs * duracion)
+    
+    # Genera un ruido con media 0, desviación estandar 1.
+    ruido_blanco_random = np.random.normal(loc=0, scale=1.0, size=longitud)     
+    
+    # Calcula el pico de la señal de ruido
+    valor_pico = np.max(np.abs(ruido_blanco_random))                
+
+    # Normaliza el ruido con el valor absoluto del pico              
+    ruido_blanco_normalizado = (ruido_blanco_random / valor_pico)            
+
+    # Multiplica el ruido por el valor de amplitud buscado      
+    ruido_blanco_final = ruido_blanco_normalizado * amplitud                    
     return ruido_blanco_final
+
 
 def sumar_senales(*senales):
     """
     Suma n cantidad de señales, rellenando las más cortas con ceros para obtener un largo total de la señal mas larga.
+    
     Parámetros
     ----------
-    senales: array
+    senales: lista de NumPy array.
+        La cantidad de arrays por separado que se deseen superponer. (Pueden ser de largos distintos)
+    
+    Retorna
+    ----------
+    resultado: NumPy array
+        Valores en tiempo correspondientes a la señal compuesta.
     """
+    
     if not senales:
         return np.array([])
+    
+    # Encuentra el largo de la señal más larga
+    largo_max = max(len(s) for s in senales)                                    
   
-    largo_max = max(len(s) for s in senales)                                    # Encuentra el largo de la señal más larga
+    # Crea un array de resultados con ceros
+    resultado = np.zeros(largo_max)                                             
   
-    resultado = np.zeros(largo_max)                                             # Crea un array de resultados con ceros
-  
-    for s in senales:                                                           # Rellena cada señal con ceros hasta el maximo y la suma al resultado
-        s_pad = np.pad(s, (0, largo_max - len(s)), mode='constant')             # np.pad agrega ceros al final hasta llegar a 'largo_max'
+    # Rellena cada señal con ceros hasta el maximo y la suma al resultado
+    # np.pad agrega ceros al final hasta llegar a 'largo_max'
+    for s in senales:                                                          
+        s_pad = np.pad(s, (0, largo_max - len(s)), mode='constant')             
         resultado += s_pad
         
     return resultado
 
+
 def generar_arpegio(duracion_arpegio, fs, *frecuencias):
-    duracion_nota = duracion_arpegio / len(frecuencias)                         # Calcula la duración de cada nota para que el total sume los segundos esperados
+    """
+    Recibe una duración total y valores de frecuencias particulares para armar una concatenación temporal de esas frecuencias.
+    Cada frecuencia suelta durará lo mismo en la señal total.
+    
+    Parámetros
+    ----------
+    duracion_arpegio: float.
+        Cantidad de segundos totales que va a durar la señal final.
+    fs: int
+        Frecuencia de muestreo de las operaciones.
+    frecuencias: float
+        Valores sueltos de las frecuencias que serán parte de la señal, en el orden en el que se deseen.
+    
+    Retorna
+    ----------
+    audio_final: NumPy array
+        Valores en tiempo correspondientes a la señal compuesta.
+    """
+    
+    # Calcula la duración de cada nota para que el total sume los segundos esperados
+    duracion_nota = duracion_arpegio / len(frecuencias)                         
     notas_audio = []
     
-    for f in frecuencias:                                                       # Genera cada tono y lo guarda en la lista
+    # Genera cada tono y lo guarda en la lista
+    for f in frecuencias:                                                       
         tono = generar_tono_puro(1, duracion_nota, fs, f)
         notas_audio.append(tono)
-
-    audio_final = np.concatenate(notas_audio)                                   # Concatena todas las notas en una sola señal larga
+        
+    # Concatena todas las notas en una sola señal larga
+    audio_final = np.concatenate(notas_audio)                                   
     
     return audio_final
+
 
 # --- FUNCIONES DE GRAFICACION ---
 def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xlim=None, modo=None):
     """
     Grafica una o varias señales en función del tiempo calculando 
-    la duración automáticamente y permitiendo ajustar los límites del eje X.
+    la duración automáticamente. Permitiendo ajustar los límites del eje X y la visualización en modo discreto.
     
     Parámetros
     ----------
@@ -98,7 +155,12 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
         Si se establece a 'discreto', grafica la señal discretamente usando
         marcadores y líneas tipo "stem". Por defecto (None) grafica en
         forma continua con plot().
+        
+    Retorna
+    ----------
+    Muestra el gráfico compuesto en tiempo.
     """
+    
     # Si se recibe una única señal, la convertimos en lista
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
         señales = [señales]
@@ -137,11 +199,9 @@ def graficar_t(fs, señales, etiquetas=None, titulo='Señales en el Tiempo', xli
     ax.set_ylabel("Amplitud")
     ax.legend(loc='upper right') 
     ax.grid(True)
-    plt.show()
+    plt.show()  
     
-
-
-# GRAFICAR FUNCIONES EN FRECUENCIA. revisar los rastros de copilot. cuidado con la escala logarítmica  (límites?)
+    
 def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fourier)', xlim=None):
     """
     Calcula y grafica el espectro de magnitud de Fourier en escala logarítmica.
@@ -159,12 +219,17 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     xlim : tuple, opcional
         Límites del eje X (fmin, fmax). Si es None o no se especifica, 
         se usa por defecto (20, 20000) Hz.
+    
+    Retorna
+    ----------
+    Muestra el gráfico compuesto en frecuencia.
     """
-    # 1. Normalización de las señales de entrada
+    
+    # Normaliza las señales de entrada y las convierte en lista.
     if isinstance(señales, np.ndarray) and señales.ndim == 1:
         señales = [señales]
         
-    # 2. Normalización de las etiquetas
+    # Normaliza las etiquetas en caso de no haber especificado.
     if etiquetas is None:
         etiquetas = [f'Espectro {i+1}' for i in range(len(señales))]
     elif isinstance(etiquetas, str):
@@ -172,7 +237,7 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
         
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # 3. Procesamiento y cálculo de FFT
+    # Procesamiento y cálculo de FFT
     for s, etiqueta in zip(señales, etiquetas):
         N = len(s)
         
@@ -190,19 +255,19 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
 
         ax.plot(frecuencias, magnitud, label=etiqueta)
         
-    # 4. Configuración del eje X y escala logarítmica
+    # Configuración del eje X y escala logarítmica
     ax.set_xscale('log')
     
-    # CONTROL DE LÍMITES: Si es None, asigna el rango clásico de audio (20 - 20kHz)
+    # Control de límites: Si es None, asigna el rango clásico de audio (20 - 20kHz)
     if xlim is None:
         xlim = (20, fs/2)
     ax.set_xlim(xlim)
     
-    # 5. Configuración dinámica de Ticks según los límites elegidos
+    # Configura los marcadores típicos de audio según los límites elegidos
     ticks_audio = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
     labels_audio = ['20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k']
     
-    # Filtrar ticks para que solo se muestren los que entran en el rango elegido por el usuario
+    # Filtra los ticks para que solo se muestren los que entran en el rango elegido por el usuario
     ticks_filtrados = [t for t in ticks_audio if xlim[0] <= t <= xlim[1]]
     labels_filtrados = [l for t, l in zip(ticks_audio, labels_audio) if xlim[0] <= t <= xlim[1]]
     
@@ -212,7 +277,7 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
         ax.set_xticks(ticks_filtrados)
         ax.set_xticklabels(labels_filtrados)
     
-    # 6. Estética final del gráfico
+    # Estética final del gráfico
     ax.grid(True, which="both", ls="--", color='gray', alpha=0.5)
     ax.set_title(titulo)
     ax.set_xlabel("Frecuencia (Hz)")
@@ -222,12 +287,28 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     plt.subplots_adjust()
     plt.show()
 
+
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
     """
     Función para graficar módulo (azul) y fase (rojo) en radianes.
     Mantiene la fase acotada entre -pi y pi.
-    Corrige los problemas de superposición de etiquetas y el warning de tight_layout.
+    
+    Parámetros
+    ----------
+    frecuencias : NumPy array
+        Array con las muestras de frecuencias del eje x.
+    modulos : NumPy array
+        Datos del modulo de la señal de entrada.
+    etiquetas : str, opcional
+        Etiquetas de la señal a graficar.
+    titulo : str, opcional
+        Título del gráfico.
+        
+    Retorna
+    ----------
+    Muestra dos gráficos indicando módulo y fase del espectro de la señal.
     """
+    
     # Validaciones para asegurar que modulos y fases sean listas/iterables
     if isinstance(modulos, np.ndarray) and modulos.ndim == 1:
         modulos = [modulos]
@@ -271,8 +352,8 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
         # Gráfico de Fase en ROJO (directo, SIN np.unwrap)
         ax2.plot(freqs_recortadas, f_rad, label=etiqueta_fase, lw=1.5, color='red', alpha=max(alpha_val, 0.4))
         
-    # --- Estética del Módulo ---
-    # Dibujamos ejes cruzados visuales en cero sin mover los contenedores de texto
+    # -- Estética del Módulo --
+    # Dibujamos ejes cruzados visuales en cero.
     ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
     ax1.axvline(0, color='black', linewidth=0.8, zorder=1)
     
@@ -285,7 +366,7 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     ax1.legend(loc='upper right')
     ax1.grid(True, linestyle='--', alpha=0.7)
     
-    # --- Estética de la Fase ---
+    # -- Estética de la Fase --
     ax2.axhline(0, color='black', linewidth=0.8, zorder=1)
     ax2.axvline(0, color='black', linewidth=0.8, zorder=1)
     
@@ -295,7 +376,7 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     ax2.set_xlabel("Frecuencia (Hz)", fontsize=12)
     ax2.set_ylabel("Fase (rad)", fontsize=12)
     
-    # Acotamos el eje Y sumando un pequeño margen
+    # Acotamos el eje Y, sumando un pequeño margen
     ax2.set_ylim(-np.pi - 0.5, np.pi + 0.5)
     
     # Configuramos los ticks del eje Y para mostrar múltiplos de Pi limpios
@@ -305,10 +386,101 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     ax2.legend(loc='upper right')
     ax2.grid(True, linestyle='--', alpha=0.7)
 
-    # Ahora tight_layout funcionará perfectamente y sin warnings
     plt.tight_layout() 
     plt.show()
 
+# --- FUNCIONES DE ARMADO DE FILTROS ---
+def filtros_media_movil(M,N):
+    """
+    Genera las respuestas al impulso para un filtro de media móvil
+    de 1, 2 y 3 pasadas.
+    
+    Parámetros
+    ----------
+    M: int
+        El largo de la ventana del filtro.
+    N: int
+        La longitud de la respuesta al impulso.
+    
+    Retorna
+    ----------
+    h1: NumPy array
+        Respuesta al impulso de la primera pasada del filtro.
+    h2: NumPy array
+        Respuesta al impulso de la segunda pasada del filtro.
+    h3: NumPy array
+        Respuesta al impulso de la tercera pasada del filtro.
+    """
+    
+    delta = np.zeros(N)
+    delta[0] = 1
+
+    # Primera pasada: h[n] = 1/M
+    # Creamos un arreglo de tamaño M donde cada valor es 1/M
+    p1 = np.ones(M) / M
+    
+    # Segunda pasada: Convolución de h1 consigo misma
+    p2 = np.convolve(p1, p1)
+    
+    # Tercera pasada: Convolución de h2 con h1
+    p3 = np.convolve(p2, p1)
+
+    h1 = np.convolve(delta, p1)[:N]
+    h2 = np.convolve(delta, p2)[:N]
+    h3 = np.convolve(delta, p3)[:N]
+    
+    return h1, h2, h3
+
+
+def filtro_peine(b0, b1, b2, N):
+    """
+    Genera la respuesta al impulso h[n] para un filtro peine FIR.
+    
+    Parámetros
+    ----------
+    b0, b1, b2 : float
+        Coeficientes constantes del filtro.
+        
+    Retorna
+    ----------
+    h : NumPy array
+        Vector con la respuesta al impulso h[n].
+    """
+
+    delta = np.zeros(N)
+    delta[0] = 1
+
+    filtro = np.array([b0,b1,b2])
+    h = np.convolve(delta, filtro)[:N]
+
+    return h 
+
+
+def filtro_fir(N, path):
+    """
+    Genera la respuesta al impulso h[n] para un filtro FIR, importando parametros de un archivo .py externo.
+    
+    Parámetros
+    ----------
+    N: cantidad de muestras.
+    path: camino relativo donde se encuentran los coeficientes del filtro.
+        
+    Retorna
+    ----------
+    h : NumPy array
+        Vector con la respuesta al impulso h[n].
+    """
+    
+    delta = np.zeros(N)
+    delta[0] = 1
+    
+    coeficientes_fir = np.load(path)
+    h = np.convolve(delta, coeficientes_fir)[:N]
+
+    return h
+
+
+# --- FUNCIONES DE ANÁLISIS --- 
 def respuesta_f(entrada, salida, fs):
     """
     Calcula la respuesta en frecuencia de un sistema dado su señal de entrada y salida.
@@ -323,12 +495,15 @@ def respuesta_f(entrada, salida, fs):
         Frecuencia de muestreo en Hz.
         
     Retorna
-    -------
+    ----------
     freqs : NumPy array
         Frecuencias correspondientes a la respuesta en frecuencia.
-    H : NumPy array
-        Respuesta en frecuencia del sistema (magnitud y fase).
+    magnitud_H : NumPy array
+        Magnitud de la respuesta en frecuencia del sistema.
+    fase_H: NumPy array
+        Fase de la respuesta en frecuencia del sistema.
     """
+    
     # Convertir a float64 para evitar problemas con FFT
     entrada = np.asarray(entrada, dtype=np.float64)
     salida = np.asarray(salida, dtype=np.float64)
@@ -359,105 +534,84 @@ def respuesta_f(entrada, salida, fs):
     return freqs, magnitud_H, fase_H
 
 
-# FUNCIONES DE FILTROS
-def filtros_media_movil(M,N):
-    """
-    Genera las respuestas al impulso para un filtro de media móvil
-    de 1, 2 y 3 pasadas.
-    
-    Parámetros:
-    M (int): El largo de la ventana del filtro.
-    N (int): La longitud de la respuesta al impulso.
-    
-    Retorna:
-    tuple: (h1, h2, h3) que son los arrays (numpy arrays) de las respuestas al impulso.
-    """
-    
-    delta = np.zeros(N)
-    delta[0] = 1
-
-    # 1. Primera pasada: h[n] = 1/M
-    # Creamos un arreglo de tamaño M donde cada valor es 1/M
-    p1 = np.ones(M) / M
-    
-    # 2. Segunda pasada: Convolución de h1 consigo misma
-    p2 = np.convolve(p1, p1)
-    
-    # 3. Tercera pasada: Convolución de h2 con h1
-    p3 = np.convolve(p2, p1)
-
-    h1 = np.convolve(delta, p1)[:N]
-    h2 = np.convolve(delta, p2)[:N]
-    h3 = np.convolve(delta, p3)[:N]
-    
-    return h1, h2, h3
-
-def filtro_peine(b0, b1, b2, N):
-    """
-    Genera la respuesta al impulso h[n] para un filtro peine FIR.
-    
-    Parámetros
-    ----------
-    b0, b1, b2 : float
-        Coeficientes constantes del filtro.
-        
-    Retorna
-    -------
-    h : NumPy array
-        Vector con la respuesta al impulso h[n].
-    """
-
-    
-    delta = np.zeros(N)
-    delta[0] = 1
-
-    filtro = np.array([b0,b1,b2])
-    h = np.convolve(delta, filtro)[:N]
-
-    return h 
-
-
-def filtro_fir(N, path):
-    #esto funciona solamente para mi compu pero bueno
-    delta = np.zeros(N)
-    delta[0] = 1
-    
-    coeficientes_fir = np.load(path)
-    h = np.convolve(delta, coeficientes_fir)[:N]
-
-    return h
-
 def analisis_filtros(filtro, fs):
     """
     Toma la respuesta al impulso de un filtro, calcula su FFT real 
     y devuelve el vector de frecuencias, el módulo y la fase acotada entre -pi y pi.
+    
+    Parámetros
+    ----------
+    filtro: NumPy array.
+        Valores de muestras de la respuesta al impulso del filtro.
+        fs: frecuencia de muestreo a la que se tomaron esos valores.
+        
+    Retorna
+    ----------
+    freqs: NumPy array. 
+        Valores de frecuencias a la que le corresponderán un módulo y una fase ordenadas.
+    modulo: NumPy array
+        Valores ordenados de modulo
+    fase_rad: NumPy array
+        Valores ordenados de fase
     """
+    
     N = len(filtro)
     H_w = np.fft.rfft(filtro)
     freqs = np.fft.rfftfreq(N, d=1/fs)
     modulo = np.abs(H_w)
     
-    # 1. Obtenemos la fase base
+    # Obtenemos la fase base
     fase_raw = np.angle(H_w)
     
-    # 2. Forzamos matemáticamente a que esté en el rango [-pi, pi]
+    # Forzamos matemáticamente a que esté en el rango [-pi, pi]
     fase_rad = (fase_raw + np.pi) % (2 * np.pi) - np.pi
 
     return freqs, modulo, fase_rad
 
 
+# --- FUNCIONES DE FILTRADO --- 
 def filtrar_temporal(h_filtro, señal):
     """
-    agregar docstring
+    Por método de convolución, filtra una señal.
+    
+    Parámetros
+    ----------
+    h_filtro: NumPy array.
+        Valores en muestras temporales de la respuesta al impulso del filtro.
+    señal: NumPy array.
+        Valores en muestras temporales temporales de una señal.
+        
+    Retorna
+    ----------
+    señal_filtrada: NumPy array
+        Valores en muestras temporales de la señal filtrada.
     """
+    
     señal_filtrada = np.convolve(señal, h_filtro, mode='same')
 
     return señal_filtrada
 
+
 def filtrar_frecuencial(h_filtro, señal, fs):
     """
-    agregar docstring
+    Por un lado realiza la FFT para convertir señales temporales en espectros frecuenciales.
+    Luego por método de la multiplicación en frecuencias, filtra una señal.
+    
+    Parámetros
+    ----------
+    h_filtro: NumPy array.
+        Valores en muestras temporales de la respuesta al impulso del filtro.
+    señal: NumPy array.
+        Valores en muestras temporales temporales de una señal.
+    fs: int
+        frecuencia de muestreo a la que se realizan los pasajes.
+        
+    Retorna
+    ----------
+    señal_filtrada: NumPy array
+        Valores en muestras temporales de la señal filtrada.
     """
+    
     H_w = np.fft.rfft(h_filtro, n=len(señal))
     X_w = np.fft.rfft(señal)
     Y_w = H_w * X_w
@@ -466,13 +620,50 @@ def filtrar_frecuencial(h_filtro, señal, fs):
 
     return señal_filtrada
 
-# EXTRA
+
+# --- EXTRA ---
 def descargar_wav_normalizado(audio, fs, nombre_archivo):
+    """
+    Descarga un archivo .wav, normalizando los valores entre 1 y -1 para cuidar los equipos de reproducción.
+    
+    Parámetros
+    ----------
+    audio: NumPy array.
+        Valores en muestras temporales de la señal de audio.
+    fs: int
+        frecuencia de muestreo a la que se realizan los pasajes.
+    nombre_archivo: str
+        nombre con el que se desea guardar el archivo (va sin .wav)
+        
+    Retorna
+    ----------
+    El archivo .wav se descarga en el directorio donde se este trabajando.
+    """
+    
     valor_pico = np.max(np.abs(audio))
     audio_normalizado = audio / valor_pico
     sf.write(f'{nombre_archivo}.wav', audio_normalizado, fs)
     
+    
 def leer_audio (nombre_archivo, carpeta_de_archivos):
+    """
+    Lee un archivo .wav y guarda sus valores y su fs.
+    
+    Parámetros
+    ----------
+    carpeta_de_archivos: str
+        Ruta completa de la carpeta donde se encuentre el archivo.
+    nombre_archivo: str
+        nombre comleto del archivo que se desea leer.
+        
+    Retorna
+    ----------
+    audio: NumPy array
+        Valores muestreados en tiempo de la señal de audio.
+    fs: int
+        Frecuencia de muestreo a la que estaba el audio original.
+    """
+    
     ruta_completa = os.path.join(carpeta_de_archivos, nombre_archivo)
     audio, fs = sf.read(ruta_completa)
     
