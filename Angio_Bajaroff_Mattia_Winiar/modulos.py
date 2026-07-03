@@ -291,7 +291,7 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
 
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización'):
     """
-    Función para graficar módulo (azul) y fase (rojo) en radianes.
+    Función para graficar módulo (azul) y fase (rojo) en radianes en escala logarítmica (rango de audio extendido).
     Mantiene la fase acotada entre -pi y pi.
     
     Parámetros
@@ -337,7 +337,7 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
             if len(etiquetas_fase) < len(modulos):
                 etiquetas_fase = etiquetas_modulo
 
-    # Creación de los subplots
+    # Creación de los subplots compartiendo el eje X
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
     
     # Bucle de graficación
@@ -353,42 +353,48 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
         # Gráfico de Fase en ROJO (directo, SIN np.unwrap)
         ax2.plot(freqs_recortadas, f_rad, label=etiqueta_fase, lw=1.5, color='red', alpha=max(alpha_val, 0.4))
         
-    # -- Estética del Módulo --
-    # Dibujamos ejes cruzados visuales en cero.
-    ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
-    ax1.axvline(0, color='black', linewidth=0.8, zorder=1)
+    # Ticks definidos entre 20 Hz y 20 kHz
+    ticks_audio = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
+    labels_audio = ['20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k']
     
-    # Ocultamos solo los bordes superior y derecho para dar un aspecto de plano cartesiano limpio
+    # Configurar escala logarítmica y ticks en el eje X compartido
+    ax2.set_xscale('log')
+    ax2.set_xticks(ticks_audio)
+    ax2.set_xticklabels(labels_audio)
+    ax2.set_xlim(20, 24000)
+        
+    # -- Estética del Módulo --
+    ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
+    
     ax1.spines['right'].set_visible(False)
     ax1.spines['top'].set_visible(False)
     
     ax1.set_title(titulo, fontsize=14)
     ax1.set_ylabel(r"$|H(\omega)|$", fontsize=12)
     ax1.legend(loc='upper right')
-    ax1.grid(True, linestyle='--', alpha=0.7)
+    
+    ax1.grid(True, which="both", linestyle='--', alpha=0.7)
     
     # -- Estética de la Fase --
     ax2.axhline(0, color='black', linewidth=0.8, zorder=1)
-    ax2.axvline(0, color='black', linewidth=0.8, zorder=1)
     
     ax2.spines['right'].set_visible(False)
     ax2.spines['top'].set_visible(False)
     
-    ax2.set_xlabel("Frecuencia (Hz)", fontsize=12)
+    ax2.set_xlabel("Frecuencia [Hz] (Escala Logarítmica)", fontsize=12)
     ax2.set_ylabel("Fase (rad)", fontsize=12)
     
-    # Acotamos el eje Y, sumando un pequeño margen
     ax2.set_ylim(-np.pi - 0.5, np.pi + 0.5)
     
-    # Configuramos los ticks del eje Y para mostrar múltiplos de Pi limpios
     ax2.set_yticks([-np.pi, 0, np.pi])
     ax2.set_yticklabels([r'$-\pi$', '0', r'$\pi$'], fontsize=11)
     
     ax2.legend(loc='upper right')
-    ax2.grid(True, linestyle='--', alpha=0.7)
+    ax2.grid(True, which="both", linestyle='--', alpha=0.7)
 
     plt.tight_layout() 
     plt.show()
+
 
 # --- FUNCIONES DE ARMADO DE FILTROS ---
 def filtros_media_movil(M,N):
@@ -627,13 +633,15 @@ def calcular_coherencia(entrada, salida, fs=1.0, nperseg=256):
     """
     Calcula la coherencia cuadrática entre dos señales usando la fórmula analítica.
     
-    Parámetros:
+    Parámetros
+    ----------
     entrada : array_like - Señal de entrada.
     salida : array_like - Señal de salida.
     fs : float - Frecuencia de muestreo.
     nperseg : int - Longitud de cada segmento para el método de Welch.
     
-    Retorna:
+    Retorna
+    ----------
     f : ndarray - Array de frecuencias muestrales.
     coherencia : ndarray - Valores de la coherencia cuadrática para cada frecuencia.
     """
@@ -670,27 +678,36 @@ def graficar_coherencia(f, coherencia):
     """
     Grafica la coherencia cuadrática en función de la frecuencia.
     
-    Parámetros:
+    Parámetros
+    ----------
     f : ndarray - Array de frecuencias en Hz.
     coherencia : ndarray - Valores de la coherencia cuadrática.
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8, 6))
     
     plt.plot(f, coherencia, color='blue', linewidth=1.5)
+
+    plt.xscale('log')
     
-    plt.xlabel('Frecuencia [Hz]')
+    # Ticks definidos entre 20 Hz y 20 kHz
+    ticks_audio = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
+    labels_audio = ['20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k']
+    
+    plt.xlabel('Frecuencia [Hz] (Escala Logarítmica)')
     plt.ylabel('Coherencia cuadrática')
     
     plt.ylim(0, 1.01)
     
     plt.title('Análisis de Coherencia Cuadrática')
     
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid(True, which="both", linestyle='--', alpha=0.7)
+    plt.xlim(20, 24000) 
+    plt.xticks(ticks_audio, labels_audio)
     
-    plt.xlim(left=0) 
-    
+    plt.tight_layout()
     plt.show()
-
+    
+    
 # --- EXTRA ---
 def descargar_wav_normalizado(audio, fs, nombre_archivo):
     """
