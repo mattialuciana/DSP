@@ -1,7 +1,6 @@
 import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
-import scipy.signal as signal
 import os
 
 # --- FUNCIONES DE GENERACION DE SENALES ---
@@ -288,6 +287,7 @@ def graficar_f(fs, señales, etiquetas=None, titulo='Espectro de Amplitud (Fouri
     plt.subplots_adjust()
     plt.show()
 
+
 def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='Caracterización', modo='log'):
     """
     Función para graficar módulo (azul) y fase (rojo) en radianes.
@@ -372,6 +372,12 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
     else:
         raise ValueError("modo debe ser 'lin' o 'log'")
 
+    # Ajuste de límites para que la escala lineal no quede forzada por el eje compartido
+    if modo == 'lin':
+        xlim = (min(frecuencias), max(frecuencias))
+        ax1.set_xlim(xlim)
+        ax2.set_xlim(xlim)
+
     ax1.set_title(titulo, fontsize=14)
     ax1.set_ylabel(r"$|H(\omega)|$", fontsize=12)
     ax1.legend(loc='upper right')
@@ -399,7 +405,6 @@ def graficar_analisis(frecuencias, modulos, fases_rad, etiquetas=None, titulo='C
 
     plt.tight_layout() 
     plt.show()
-
 
 # --- FUNCIONES DE ARMADO DE FILTROS ---
 def filtros_media_movil(M,N):
@@ -633,86 +638,6 @@ def filtrar_frecuencial(h_filtro, señal, fs):
     return señal_filtrada
 
 
-# --- FUNCIONES DE CORRELACIÓN ---
-def calcular_coherencia(entrada, salida, fs=1.0, nperseg=256):
-    """
-    Calcula la coherencia cuadrática entre dos señales usando la fórmula analítica.
-    
-    Parámetros
-    ----------
-    entrada : array_like - Señal de entrada.
-    salida : array_like - Señal de salida.
-    fs : float - Frecuencia de muestreo.
-    nperseg : int - Longitud de cada segmento para el método de Welch.
-    
-    Retorna
-    ----------
-    f : ndarray - Array de frecuencias muestrales.
-    coherencia : ndarray - Valores de la coherencia cuadrática para cada frecuencia.
-    """
-    
-    # Autocorr entrada
-    f, Gxx = signal.welch(entrada, fs=fs, nperseg=nperseg)
-    
-    # Autocorr salida
-    _, Gyy = signal.welch(salida, fs=fs, nperseg=nperseg)
-    
-    # Corr cruzado
-    _, Gxy = signal.csd(entrada, salida, fs=fs, nperseg=nperseg)
-    
-    numerador = np.abs(Gxy)**2
-    denominador = Gxx * Gyy
-    
-    # Precaución numérica: evitamos dividir por cero si Gxx o Gyy son 0 en alguna frecuencia
-    # coherencia = np.zeros_like(numerador)
-
-    # Manejo de ceros
-    #epsilon = 1e-12 
-    #denominador = denominador + epsilon
-
-    coherencia = numerador / denominador
-
-    H = Gxy / Gxx
-    mod = np.abs(H)
-    fase = np.angle(H)
-    
-    return f, coherencia, mod, fase
-
-
-def graficar_coherencia(f, coherencia):
-    """
-    Grafica la coherencia cuadrática en función de la frecuencia.
-    
-    Parámetros
-    ----------
-    f : ndarray - Array de frecuencias en Hz.
-    coherencia : ndarray - Valores de la coherencia cuadrática.
-    """
-    plt.figure(figsize=(8, 6))
-    
-    plt.plot(f, coherencia, color='blue', linewidth=1.5)
-
-    plt.xscale('log')
-    
-    # Ticks definidos entre 20 Hz y 20 kHz
-    ticks_audio = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-    labels_audio = ['20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k']
-    
-    plt.xlabel('Frecuencia [Hz] (Escala Logarítmica)')
-    plt.ylabel('Coherencia cuadrática')
-    
-    plt.ylim(0, 1.01)
-    
-    plt.title('Análisis de Coherencia Cuadrática')
-    
-    plt.grid(True, which="both", linestyle='--', alpha=0.7)
-    plt.xlim(20, 24000) 
-    plt.xticks(ticks_audio, labels_audio)
-    
-    plt.tight_layout()
-    plt.show()
-    
-    
 # --- EXTRA ---
 def descargar_wav_normalizado(audio, fs, nombre_archivo):
     """
