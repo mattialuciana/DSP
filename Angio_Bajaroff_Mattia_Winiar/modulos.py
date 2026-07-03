@@ -1,6 +1,7 @@
 import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
+import scipy.signal as signal
 import os
 
 # --- FUNCIONES DE GENERACION DE SENALES ---
@@ -620,6 +621,75 @@ def filtrar_frecuencial(h_filtro, señal, fs):
 
     return señal_filtrada
 
+
+# --- FUNCIONES DE CORRELACIÓN ---
+def calcular_coherencia(entrada, salida, fs=1.0, nperseg=256):
+    """
+    Calcula la coherencia cuadrática entre dos señales usando la fórmula analítica.
+    
+    Parámetros:
+    entrada : array_like - Señal de entrada.
+    salida : array_like - Señal de salida.
+    fs : float - Frecuencia de muestreo.
+    nperseg : int - Longitud de cada segmento para el método de Welch.
+    
+    Retorna:
+    f : ndarray - Array de frecuencias muestrales.
+    coherencia : ndarray - Valores de la coherencia cuadrática para cada frecuencia.
+    """
+    
+    # Autocorr entrada
+    f, Gxx = signal.welch(entrada, fs=fs, nperseg=nperseg)
+    
+    # Autocorr salida
+    _, Gyy = signal.welch(salida, fs=fs, nperseg=nperseg)
+    
+    # Corr cruzado
+    _, Gxy = signal.csd(entrada, salida, fs=fs, nperseg=nperseg)
+    
+    numerador = np.abs(Gxy)**2
+    denominador = Gxx * Gyy
+    
+    # Precaución numérica: evitamos dividir por cero si Gxx o Gyy son 0 en alguna frecuencia
+    # coherencia = np.zeros_like(numerador)
+
+    # Manejo de ceros
+    #epsilon = 1e-12 
+    #denominador = denominador + epsilon
+
+    coherencia = numerador / denominador
+
+    H = Gxy / Gxx
+    mod = np.abs(H)
+    fase = np.angle(H)
+    
+    return f, coherencia, mod, fase
+
+
+def graficar_coherencia(f, coherencia):
+    """
+    Grafica la coherencia cuadrática en función de la frecuencia.
+    
+    Parámetros:
+    f : ndarray - Array de frecuencias en Hz.
+    coherencia : ndarray - Valores de la coherencia cuadrática.
+    """
+    plt.figure(figsize=(10, 6))
+    
+    plt.plot(f, coherencia, color='blue', linewidth=1.5)
+    
+    plt.xlabel('Frecuencia [Hz]')
+    plt.ylabel('Coherencia cuadrática')
+    
+    plt.ylim(0, 1.01)
+    
+    plt.title('Análisis de Coherencia Cuadrática')
+    
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    plt.xlim(left=0) 
+    
+    plt.show()
 
 # --- EXTRA ---
 def descargar_wav_normalizado(audio, fs, nombre_archivo):
